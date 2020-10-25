@@ -2,6 +2,7 @@ import Phaser from "phaser";
 
 import Belt from "./sprites/Belt";
 import Qubit from "./sprites/Qubit";
+import DebuggerHelper from "./utils/DebuggerHelper";
 
 class Play extends Phaser.Scene {
   constructor() {
@@ -12,15 +13,16 @@ class Play extends Phaser.Scene {
 
   create() {
     var belt_data = [
-      { x: 0, y: 0, direction: "UP" },
+      { x: 0, y: 0, direction: "RIGHT" },
       { x: 0, y: 1, direction: "UP" },
       { x: 0, y: 2, direction: "UP" },
-      { x: 0, y: 3, direction: "UP" },
+      { x: 0, y: 3, direction: "RIGHT" },
+      { x: 1, y: 3, direction: "UP" },
       { x: 0, y: 4, direction: "UP" },
       { x: 0, y: 5, direction: "UP" }
     ];
 
-    this.belts = this.physics.add.group();
+    this.belts = this.physics.add.staticGroup();
     for (var i = 0; i < belt_data.length; ++i) {
       var belt = new Belt({
         scene: this,
@@ -28,26 +30,24 @@ class Play extends Phaser.Scene {
         y: (2 + belt_data[i].y) * 64,
         direction: belt_data[i].direction
       });
-      // this.belts.add(belt.sprite);
+      this.belts.add(belt.sprite);
     }
 
     this.qubit = new Qubit({
       scene: this,
-      x: 2 * 32,
-      y: 14 * 32
+      x: 8 * 32,
+      y: 12 * 32
     });
 
-    this.qubit.sprite.body.velocity.x = 50;
-    // var collider = this.physics.add.collider(
-    //   this.qubit.sprite,
-    //   this.belts,
-    //   overlap_handler
-    // );
-    // collider.overlapOnly = true;
+    if (this.game.config.physics.arcade.debug) {
+      this.debugger = new DebuggerHelper(this, this.qubit.sprite);
+    }
+
+    this.physics.add.overlap(this.qubit.sprite, this.belts, overlap_handler);
   }
 
   update(time, delta) {
-    this.physics.overlap(this.qubit, this.belts, overlap_handler);
+    // this.physics.overlap(this.qubit, this.belts, overlap_handler);
   }
 
   restartScene() {
@@ -64,9 +64,28 @@ class Play extends Phaser.Scene {
 }
 
 function overlap_handler(qubit, belt) {
-  console.log("in Overlap handler:");
-  console.log(qubit);
-  console.log(belt);
+  var delta_x = qubit.getCenter().x - belt.getCenter().x;
+  var delta_y = qubit.getCenter().y - belt.getCenter().y;
+  var delta = Math.sqrt(delta_x * delta_x + delta_y * delta_y);
+  if (delta < 1) {
+    var belt_velocity = 60;
+    switch (belt.context.direction) {
+      case "UP":
+        qubit.body.velocity.set(0, -belt_velocity);
+        break;
+      case "DOWN":
+        qubit.body.velocity.set(0, belt_velocity);
+        break;
+      case "LEFT":
+        qubit.body.velocity.set(-belt_velocity, 0);
+        break;
+      case "RIGHT":
+        qubit.body.velocity.set(belt_velocity, 0);
+        break;
+      default:
+        break;
+    }
+  }
 }
 
 export default Play;
